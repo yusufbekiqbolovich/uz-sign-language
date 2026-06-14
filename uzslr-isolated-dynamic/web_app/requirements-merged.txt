@@ -1,0 +1,23 @@
+# Merged web app — serves BOTH models from one FastAPI process:
+#   * words  (dynamic isolated signs) — PyTorch transformer over MediaPipe Holistic
+#   * letters & numbers (fingerspelling) — scikit-learn over MediaPipe HandLandmarker
+#
+# Install into one venv, then run from the repo root (uzslr-isolated-dynamic):
+#   PYTHONPATH=. python -m uvicorn web_app.backend.main:app --host 0.0.0.0 --port 7860
+
+# web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+
+# words model
+torch
+
+# letters/numbers model
+scikit-learn
+joblib
+
+# shared: landmark extraction + image decode
+mediapipe
+opencv-python
+numpy<2

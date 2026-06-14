@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UzSLR — O'zbek imo-ishora tili</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0c0c0f;
+    --surface:   #13131a;
+    --border:    #22222e;
+    --border-hi: #33334a;
+    --accent:    #7fff6e;
+    --accent2:   #4f8cff;
+    --warn:      #ff6b6b;
+    --gold:      #ffd166;
+    --text:      #e8e8f0;
+    --muted:     #6a6a80;
+    --card-bg:   #16161f;
+    --radius:    10px;
+    --mono:      'Space Mono', monospace;
+    --display:   'Syne', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--display); overflow-x: hidden; }
+
+  /* ───── nav ───── */
+  .nav {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 28px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50; background: var(--bg);
+  }
+  .nav-logo {
+    font-weight: 800; letter-spacing: 0.06em; color: var(--accent);
+    font-size: 1.05rem; margin-right: 20px;
+  }
+  .nav-link {
+    background: none; border: 1px solid transparent; color: var(--muted);
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 8px 16px; border-radius: 7px;
+    cursor: pointer; text-decoration: none; transition: color .15s, background .15s, border-color .15s;
+  }
+  .nav-link:hover { color: var(--text); }
+  .nav-link.active { color: var(--text); background: var(--surface); border-color: var(--border); }
+
+  main { height: calc(100vh - 58px); overflow: hidden; }
+
+  .screen { display: none; height: 100%; }
+  .screen.active { display: block; }
+
+  /* ───── mode toggle (segmented) ───── */
+  .mode-toggle { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 4px; }
+  .mode-btn {
+    background: none; border: none; color: var(--muted);
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em;
+    padding: 8px 18px; border-radius: 6px; cursor: pointer; transition: color .15s, background .15s;
+  }
+  .mode-btn:hover { color: var(--text); }
+  .mode-btn.active { color: var(--bg); background: var(--accent); font-weight: 700; }
+
+  .section-bar { display: flex; align-items: center; gap: 16px; padding: 18px 28px 0; }
+  .section-bar h2 { font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); font-family: var(--mono); }
+
+  /* ───── two-column layout ───── */
+  .cols { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 24px; padding: 18px 28px 28px; height: calc(100% - 46px); overflow: hidden; }
+  .cols.single { grid-template-columns: 1fr; max-width: 1100px; margin: 0 auto; }
+  .col { display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow-y: auto; }
+  .col.left { overflow: hidden; }
+
+  /* ───── camera ───── */
+  .cam-box { position: relative; width: 100%; aspect-ratio: 4/3; background: var(--card-bg); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+  .cam-box.active { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2), 0 0 40px -18px var(--accent2); }
+  .cam-video { width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1); background:#000; }
+  .cam-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .hand-dot { position: absolute; top: 12px; left: 12px; width: 11px; height: 11px; border-radius: 50%; background: var(--warn); transition: background .3s; box-shadow: 0 0 0 4px rgba(0,0,0,.35); }
+  .hand-dot.ok { background: var(--accent); }
+  .status-pill { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 7px; background: rgba(0,0,0,.6); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-family: var(--mono); font-size: 0.66rem; color: var(--text); }
+  .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .status-pill .dot.active { background: var(--accent2); }
+  .status-pill .dot.error  { background: var(--warn); }
+  .match-label { position: absolute; top: 0; left: 0; right: 0; padding: 26px 16px; text-align: center; font-family: var(--mono); font-size: 3rem; font-weight: 700; letter-spacing: 0.12em; color: transparent; pointer-events: none; transition: color .12s; text-shadow: 0 2px 14px rgba(0,0,0,.95); }
+  .match-label.match { color: var(--accent); }
+  .match-label.miss  { color: var(--warn); }
+  .buffer-wrap { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(0,0,0,.45); }
+  .buffer-bar { height: 100%; width: 0%; background: var(--accent2); transition: width .1s linear; }
+
+  .cam-start-btn { background: var(--accent); color: #000; border: none; border-radius: 8px; font-family: var(--mono); font-size: 0.78rem; font-weight: 700; padding: 13px 20px; cursor: pointer; letter-spacing: 0.04em; transition: opacity .15s; width: 100%; }
+  .cam-start-btn:hover { opacity: .88; }
+  .cam-start-btn:disabled { opacity: .4; cursor: default; }
+  .cam-hint { font-size: 0.78rem; color: var(--muted); text-align: center; }
+
+  /* ───── prediction card ───── */
+  .pred-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px 24px; display: flex; flex-direction: column; align-items: center; gap: 16px; min-height: 190px; justify-content: center; position: relative; overflow: hidden; }
+  .pred-card::before { content:''; position:absolute; inset:0; background: radial-gradient(ellipse at 50% 0%, rgba(79,140,255,.08) 0%, transparent 70%); pointer-events:none; }
+  .pred-idle { color: var(--muted); text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .pred-idle .ic { font-size: 2.6rem; }
+  .pred-label { font-family: var(--mono); font-size: 3.6rem; font-weight: 700; color: var(--accent2); line-height: 1; text-align: center; }
+  .conf-row { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 280px; }
+  .conf-track { flex: 1; background: var(--border); border-radius: 4px; height: 7px; overflow: hidden; }
+  .conf-fill { height: 100%; width: 0%; border-radius: 4px; background: var(--accent2); transition: width .25s; }
+  .conf-pct { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); min-width: 38px; text-align: right; }
+
+  .hist-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .hist-title { font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-family: var(--mono); }
+  .hist-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .hist-list li { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.8rem; padding: 7px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+  .hist-list .hc { color: var(--muted); }
+
+  /* ───── practice grid ───── */
+  .grid-panel { padding-right: 4px; overflow-y: auto; flex: 1; }
+  .sign-grid { display: grid; gap: 8px; }
+  .sign-grid.letters { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+  .sign-grid.words   { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+  .sign-btn {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-family: var(--mono); font-weight: 700; cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s, transform .1s;
+    text-align: center; user-select: none;
+  }
+  .sign-grid.letters .sign-btn { font-size: 1.1rem; padding: 18px 8px; }
+  .sign-grid.words   .sign-btn { font-size: 0.8rem; padding: 12px 10px; }
+  .sign-btn:hover { background: #1e1e2a; border-color: var(--accent2); color: var(--accent2); transform: translateY(-2px); }
+  .sign-btn.active { background: #0e1f0e; border-color: var(--accent); color: var(--accent); }
+
+  /* ───── reference panel ───── */
+  .ref-panel { display: none; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid var(--border); margin-top: 12px; }
+  .ref-panel.visible { display: flex; }
+  .ref-head { display: flex; align-items: center; justify-content: space-between; }
+  .ref-label { font-family: var(--mono); font-size: 2.2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .back-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-family: var(--mono); font-size: 0.68rem; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .back-btn:hover { color: var(--text); border-color: var(--text); }
+
+  .ref-samples-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .ref-strip { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 4px; }
+  .ref-thumb { flex-shrink: 0; width: 96px; height: 96px; border-radius: 8px; border: 2px solid var(--border); overflow: hidden; cursor: pointer; background: var(--card-bg); transition: border-color .15s, transform .1s; }
+  .ref-thumb:hover { border-color: var(--accent2); transform: scale(1.04); }
+  .ref-thumb.selected { border-color: var(--accent); }
+  .ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .ref-big-wrap { position: relative; width: 100%; aspect-ratio: 1; max-height: 300px; border-radius: var(--radius); overflow: hidden; background: var(--card-bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .ref-big-wrap img, .ref-big-wrap video { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .ref-counter { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6); font-family: var(--mono); font-size: 0.62rem; color: var(--muted); padding: 4px 8px; border-radius: 4px; }
+  .ref-nav { position: absolute; bottom: 10px; right: 10px; display: flex; gap: 6px; }
+  .nav-btn { background: rgba(0,0,0,.7); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 0.72rem; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: background .15s; }
+  .nav-btn:hover { background: rgba(255,255,255,.1); }
+
+  .target-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+  .target-box .tl { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .target-box .ts { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+  .target-box .th { font-size: 0.74rem; color: var(--muted); }
+
+  .idle-pick { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); text-align: center; padding: 40px 20px; min-height: 200px; }
+  .idle-pick .arrow { font-size: 2rem; animation: nudge 1.6s ease-in-out infinite; }
+  .idle-pick p { font-size: 0.85rem; line-height: 1.6; }
+  @keyframes nudge { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-8px)} }
+
+  ::-webkit-scrollbar { width: 6px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-logo">UzSLR</div>
+    <button class="nav-link active" data-screen="live">Jonli</button>
+    <button class="nav-link" data-screen="practice">Mashq</button>
+    <a class="nav-link" href="signs.html">50 Ishora</a>
+    <a class="nav-link" href="sign_production.html">Video yasash</a>
+  </nav>
+
+  <main>
+
+    <!-- ════════════ JONLI (LIVE) ════════════ -->
+    <section class="screen active" id="screen-live">
+      <div class="section-bar">
+        <h2>Jonli aniqlash</h2>
+        <div class="mode-toggle" data-modegroup="live">
+          <button class="mode-btn active" data-mode="letters">Harflar &amp; Raqamlar</button>
+          <button class="mode-btn" data-mode="words">So'zlar</button>
+        </div>
+      </div>
+
+      <div class="cols">
+        <div class="col left">
+          <div class="cam-box" id="live-cambox">
+            <video id="v-live" class="cam-video" autoplay playsinline muted></video>
+            <canvas id="c-live" class="cam-canvas" width="320" height="240"></canvas>
+            <div class="hand-dot" id="dot-live"></div>
+            <div class="status-pill"><span class="dot" id="sp-dot-live"></span><span id="sp-txt-live">kamera o'chiq</span></div>
+            <div class="buffer-wrap" id="bufwrap-live" style="display:none"><div class="buffer-bar" id="buf-live"></div></div>
+          </div>
+          <button class="cam-start-btn" id="start-live">Kamerani yoqish</button>
+        </div>
+
+        <div class="col">
+          <div class="pred-card">
+            <div class="pred-idle" id="idle-live">
+              <div class="ic" id="idle-ic-live">✋</div>
+              <p id="idle-txt-live">Qo'lingizni kameraga ko'rsating</p>
+            </div>
+            <div id="result-live" style="display:none; width:100%; align-items:center; flex-direction:column; gap:16px;">
+              <div class="pred-label" id="lbl-live">—</div>
+              <div class="conf-row">
+                <div class="conf-track"><div class="conf-fill" id="conf-live"></div></div>
+                <span class="conf-pct" id="pct-live">0%</span>
+              </div>
+            </div>
+          </div>
+          <div class="hist-wrap">
+            <div class="hist-title">oxirgi aniqlangan</div>
+            <ul class="hist-list" id="hist-live"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ MASHQ (PRACTICE) ════════════ -->
+    <section class="screen" id="screen-practice">
+      <div class="section-bar">
+        <h2>Mashq qilish</h2>
+        <div class="mode-toggle" data-modegroup="practice">
+          <button class="mode-btn active" data-mode="letters">Harflar &amp; Raqamlar</button>
+          <button class="mode-btn" data-mode="words">So'zlar</button>
+        </div>
+      </div>
+
+      <div class="cols">
+        <!-- left: pick + reference -->
+        <div class="col left">
+          <div class="grid-panel" id="pgrid-panel">
+            <div class="sign-grid letters" id="sign-grid"></div>
+          </div>
+
+          <div class="ref-panel" id="ref-panel">
+            <div class="ref-head">
+              <div class="ref-label" id="ref-label">—</div>
+              <button class="back-btn" id="back-btn">← Orqaga</button>
+            </div>
+            <div class="ref-big-wrap">
+              <span class="ref-counter" id="ref-counter"></span>
+              <img id="ref-big" alt="ishora namunasi" style="display:none">
+              <video id="ref-vid" autoplay loop muted playsinline style="display:none"></video>
+              <div class="ref-nav" id="ref-nav">
+                <button class="nav-btn" id="ref-prev">← Oldingi</button>
+                <button class="nav-btn" id="ref-next">Keyingi →</button>
+              </div>
+            </div>
+            <div class="ref-samples-label" id="ref-samples-label">namunalar</div>
+            <div class="ref-strip" id="ref-strip"></div>
+          </div>
+        </div>
+
+        <!-- right: webcam match -->
+        <div class="col">
+          <div class="cam-box" id="prac-cambox">
+            <video id="v-prac" class="cam-video" autoplay playsinline muted></video>
+            <canvas id="c-prac" class="cam-canvas" width="320" height="240"></canvas>
+            <div class="hand-dot" id="dot-prac"></div>
+            <div class="status-pill"><span class="dot" id="sp-dot-prac"></span><span id="sp-txt-prac">kamera o'chiq</span></div>
+            <div class="match-label" id="match-prac"></div>
+            <div class="buffer-wrap" id="bufwrap-prac" style="display:none"><div class="buffer-bar" id="buf-prac"></div></div>
+          </div>
+
+          <div class="target-box" id="target-box" style="display:none">
+            <div>
+              <div class="tl">Maqsad ishorasi</div>
+              <div class="ts" id="target-sign">—</div>
+            </div>
+            <div class="th" id="target-hint">Bu ishorani kameraga ko'rsating</div>
+          </div>
+
+          <div class="idle-pick" id="idle-prac">
+            <div class="arrow">←</div>
+            <p>Mashqni boshlash uchun<br>chapdan ishorani tanlang</p>
+          </div>
+
+          <button class="cam-start-btn" id="start-prac">Kamerani yoqish</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MediaPipe Holistic (words) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1635989137/holistic.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029074/camera_utils.js" crossorigin="anonymous"></script>
+
+  <script type="module">
+  // ════════════════════════════════════════════════════════════════════
+  // SHARED CAMERA — one MediaStream attached to every <video>
+  // ════════════════════════════════════════════════════════════════════
+  let sharedStream = null;
+  const VIDEOS = ['v-live', 'v-prac'];
+
+  async function ensureCamera() {
+    if (sharedStream) return sharedStream;
+    sharedStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' }, audio: false,
+    });
+    VIDEOS.forEach(id => { const v = document.getElementById(id); if (v) v.srcObject = sharedStream; });
+    return sharedStream;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // FRAME CAPTURE — mirror + crop to 4:3 (matches the displayed video)
+  // ════════════════════════════════════════════════════════════════════
+  const _cap = document.createElement('canvas'); _cap.width = 320; _cap.height = 240;
+  const _capCtx = _cap.getContext('2d');
+  function captureFrame(video) {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return null;
+    const dW = _cap.width, dH = _cap.height;
+    const sAR = vw / vh, dAR = dW / dH;
+    let sx, sy, sw, sh;
+    if (sAR > dAR) { sh = vh; sw = vh * dAR; sx = (vw - sw) / 2; sy = 0; }
+    else           { sw = vw; sh = vw / dAR; sx = 0; sy = (vh - sh) / 2; }
+    _capCtx.save();
+    _capCtx.scale(-1, 1);
+    _capCtx.drawImage(video, sx, sy, sw, sh, -dW, 0, dW, dH);
+    _capCtx.restore();
+    return _cap;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // LETTERS ENGINE — MediaPipe HandLandmarker (overlay) + /api/predict-letter
+  // ════════════════════════════════════════════════════════════════════
+  const HAND_CONNECTIONS = [
+    [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+    [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
+    [13,17],[17,18],[18,19],[19,20],[0,17],
+  ];
+  const LETTER_CONF = 0.55;
+  const PRED_MS = 300;
+
+  let handLandmarker = null;
+  async function initHandLandmarker() {
+    if (handLandmarker) return handLandmarker;
+    const { HandLandmarker, FilesetResolver } = await import(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs');
+    const fileset = await FilesetResolver.forVisionTasks(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm');
+    handLandmarker = await HandLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: '/hand_landmarker.task', delegate: 'GPU' },
+      runningMode: 'IMAGE', numHands: 2,
+      minHandDetectionConfidence: 0.6, minHandPresenceConfidence: 0.6,
+    });
+    return handLandmarker;
+  }
+
+  function drawHand(ctx, W, H, lms) {
+    const pts = lms.map(l => [l.x * W, l.y * H]);
+    ctx.strokeStyle = 'rgb(0,200,0)'; ctx.lineWidth = 2;
+    for (const [a, b] of HAND_CONNECTIONS) {
+      ctx.beginPath(); ctx.moveTo(pts[a][0], pts[a][1]); ctx.lineTo(pts[b][0], pts[b][1]); ctx.stroke();
+    }
+    for (const [px, py] of pts) {
+      ctx.beginPath(); ctx.arc(px, py, 1.6, 0, Math.PI*2); ctx.fillStyle = 'white'; ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, 1.6, 0, Math.PI*2); ctx.strokeStyle = 'rgb(0,150,0)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+  function confColor(c) { return c >= 0.85 ? 'rgb(0,210,0)' : c >= 0.65 ? 'rgb(200,200,0)' : 'rgb(210,120,0)'; }
+  function drawBBox(ctx, W, H, lms, label, conf) {
+    const pad = 8;
+    const xs = lms.map(l => l.x*W), ys = lms.map(l => l.y*H);
+    const x1 = Math.max(0, Math.min(...xs)-pad), y1 = Math.max(0, Math.min(...ys)-pad);
+    const x2 = Math.min(W, Math.max(...xs)+pad), y2 = Math.min(H, Math.max(...ys)+pad);
+    ctx.strokeStyle = 'rgb(0,220,0)'; ctx.lineWidth = 1.5; ctx.strokeRect(x1, y1, x2-x1, y2-y1);
+    if (label && conf >= LETTER_CONF) {
+      const color = confColor(conf);
+      ctx.textBaseline = 'bottom'; ctx.font = 'bold 22px monospace';
+      ctx.fillStyle = 'rgba(0,0,0,.85)'; ctx.fillText(label, x1+1, y1-2);
+      ctx.fillStyle = color; ctx.fillText(label, x1, y1-3);
+      const lw = ctx.measureText(label).width;
+      ctx.font = '10px monospace';
+      ctx.fillStyle = 'rgba(0,0,0,.8)'; ctx.fillText(`${Math.round(conf*100)}%`, x1+lw+3, y1-2);
+      ctx.fillStyle = color; ctx.fillText(`${Math.round(conf*100)}%`, x1+lw+2, y1-3);
+    }
+  }
+
+  // Engine instance bound to a specific video/canvas + a prediction callback.
+  function makeLettersEngine() {
+    let raf = null, timer = null, predBusy = false, running = false;
+    let lastLabel = null, lastConf = 0;
+    let videoEl, canvasEl, onPred, showBox;
+
+    function loop() {
+      if (!running) return;
+      const ctx = canvasEl.getContext('2d');
+      if (handLandmarker && videoEl.videoWidth > 0) {
+        try {
+          const f = captureFrame(videoEl);
+          if (f) {
+            const r = handLandmarker.detect(f);
+            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+            if (r.landmarks && r.landmarks.length) {
+              drawHand(ctx, canvasEl.width, canvasEl.height, r.landmarks[0]);
+              if (showBox) drawBBox(ctx, canvasEl.width, canvasEl.height, r.landmarks[0], lastLabel, lastConf);
+            }
+          }
+        } catch (_) {}
+      }
+      raf = requestAnimationFrame(loop);
+    }
+
+    async function tick() {
+      if (!running || !videoEl.videoWidth || predBusy) return;
+      predBusy = true;
+      try {
+        const f = captureFrame(videoEl);
+        const data = await (await fetch('/api/predict-letter', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: f.toDataURL('image/jpeg', 0.7) }),
+        })).json();
+        lastLabel = (data.hand && data.confidence >= LETTER_CONF) ? data.label : null;
+        lastConf = data.hand ? data.confidence : 0;
+        onPred(data);
+      } catch (_) {}
+      predBusy = false;
+    }
+
+    return {
+      start(opts) {
+        videoEl = opts.video; canvasEl = opts.canvas; onPred = opts.onPred; showBox = opts.showBox;
+        running = true; lastLabel = null; lastConf = 0;
+        initHandLandmarker();
+        loop();
+        timer = setInterval(tick, PRED_MS);
+      },
+      stop() {
+        running = false;
+        if (raf) cancelAnimationFrame(raf); raf = null;
+        if (timer) clearInterval(timer); timer = null;
+        if (canvasEl) canvasEl.getContext('2d').clearRect(0, 0, canvasEl.width, canvasEl.height);
+      },
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // HAND OVERLAY — same HandLandmarker as letters, used in WORD mode for a
+  // fast/accurate hand skeleton + "both hands present" gating (no prediction).
+  // ════════════════════════════════════════════════════════════════════
+  function makeHandOverlay() {
+    let raf = null, running = false, videoEl, canvasEl, onHands;
+    function loop() {
+      if (!running) return;
+      const ctx = canvasEl.getContext('2d');
+      if (handLandmarker && videoEl.videoWidth > 0) {
+        try {
+          const f = captureFrame(videoEl);
+          const r = handLandmarker.detect(f);
+          ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+          const hands = r.landmarks || [];
+          for (const lms of hands) drawHand(ctx, canvasEl.width, canvasEl.height, lms);
+          if (onHands) onHands(hands.length);
+        } catch (_) {}
+      }
+      raf = requestAnimationFrame(loop);
+    }
+    return {
+      start(opts) { videoEl = opts.video; canvasEl = opts.canvas; onHands = opts.onHands; running = true; initHandLandmarker(); loop(); },
+      stop() { running = false; if (raf) cancelAnimationFrame(raf); raf = null; if (canvasEl) canvasEl.getContext('2d').clearRect(0, 0, canvasEl.width, canvasEl.height); },
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // WORDS ENGINE — MediaPipe Holistic → 1662-vec → WebSocket /ws/infer
+  // ════════════════════════════════════════════════════════════════════
+  const N_FACE = 468, N_POSE = 33, N_HAND = 21;
+  const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/infer`;
+  const WORD_HAND_CONN = [
+    [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+    [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
+    [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17],
+  ];
+
+  function buildVec(r) {
+    const v = new Float32Array(1662); let o = 0;
+    if (r.faceLandmarks)      for (const l of r.faceLandmarks)      { v[o++]=l.x; v[o++]=l.y; v[o++]=l.z; } else o += N_FACE*3;
+    if (r.poseLandmarks)      for (const l of r.poseLandmarks)      { v[o++]=l.x; v[o++]=l.y; v[o++]=l.z; v[o++]=l.visibility??0; } else o += N_POSE*4;
+    if (r.rightHandLandmarks) for (const l of r.rightHandLandmarks) { v[o++]=l.x; v[o++]=l.y; v[o++]=l.z; } else o += N_HAND*3;
+    if (r.leftHandLandmarks)  for (const l of r.leftHandLandmarks)  { v[o++]=l.x; v[o++]=l.y; v[o++]=l.z; } else o += N_HAND*3;
+    return v;
+  }
+  function drawHolistic(ctx, W, H, r) {
+    ctx.clearRect(0, 0, W, H);
+    const conn = (lms, color) => {
+      if (!lms) return;
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      for (const [a, b] of WORD_HAND_CONN) { if (!lms[a]||!lms[b]) continue; ctx.beginPath(); ctx.moveTo(lms[a].x*W, lms[a].y*H); ctx.lineTo(lms[b].x*W, lms[b].y*H); ctx.stroke(); }
+      ctx.fillStyle = color; for (const l of lms) { ctx.beginPath(); ctx.arc(l.x*W, l.y*H, 3, 0, Math.PI*2); ctx.fill(); }
+    };
+    conn(r.rightHandLandmarks, '#c8f135');
+    conn(r.leftHandLandmarks, '#3de8c8');
+  }
+
+  let holistic = null;
+  function initHolistic() {
+    if (holistic) return holistic;
+    holistic = new Holistic({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1635989137/${f}` });
+    holistic.setOptions({
+      modelComplexity: 0, smoothLandmarks: true, enableSegmentation: false,
+      smoothSegmentation: false, refineFaceLandmarks: false,
+      minDetectionConfidence: 0.5, minTrackingConfidence: 0.5,
+    });
+    return holistic;
+  }
+
+  // Client-side state machine (mirrors the original recognise page, no LLM).
+  const ST = { IDLE: 0, FILLING: 1, PREDICTED: 2 };
+  const PRED_HOLD_MS = 3500;
+
+  function makeWordsEngine() {
+    let ws = null, wsReady = false, waiting = false, running = false, sending = false;
+    let raf = null, videoEl, canvasEl, onMsg, draw = true, externalHands = null;
+    let state = ST.IDLE, lockUntil = 0;
+    const camOnFrame = async () => {
+      if (!running || sending) return;
+      sending = true;
+      try { await holistic.send({ image: videoEl }); } catch (_) {}
+      sending = false;
+    };
+
+    function pump() {
+      if (!running) return;
+      camOnFrame();
+      raf = requestAnimationFrame(pump);
+    }
+
+    function handle(msg) {
+      const ctx = canvasEl.getContext('2d');
+      // (drawing happens in onResults)
+      switch (state) {
+        case ST.IDLE:
+          if (msg.handsVisible) { state = ST.FILLING; onMsg({ kind: 'filling', size: 0 }); }
+          break;
+        case ST.FILLING:
+          if (!msg.handsVisible) { state = ST.IDLE; onMsg({ kind: 'idle' }); break; }
+          onMsg({ kind: 'filling', size: msg.bufferSize });
+          if (msg.bufferFull && msg.prediction) {
+            state = ST.PREDICTED; lockUntil = Date.now() + PRED_HOLD_MS;
+            onMsg({ kind: 'prediction', label: msg.prediction, confidence: msg.confidence });
+          }
+          break;
+        case ST.PREDICTED:
+          if (Date.now() < lockUntil) break;
+          if (msg.handsVisible) { state = ST.FILLING; onMsg({ kind: 'filling', size: msg.bufferSize }); }
+          else { state = ST.IDLE; onMsg({ kind: 'idle' }); }
+          break;
+      }
+    }
+
+    function connect() {
+      ws = new WebSocket(WS_URL);
+      ws.onopen = () => { wsReady = true; waiting = false; };
+      ws.onclose = () => { wsReady = false; waiting = false; if (running) setTimeout(connect, 1500); };
+      ws.onerror = () => { wsReady = false; waiting = false; };
+      ws.onmessage = e => { waiting = false; handle(JSON.parse(e.data)); };
+    }
+
+    return {
+      setHandsVisible(v) { externalHands = v; },
+      start(opts) {
+        videoEl = opts.video; canvasEl = opts.canvas; onMsg = opts.onMsg;
+        draw = opts.draw !== false; externalHands = null;
+        running = true; state = ST.IDLE; lockUntil = 0;
+        initHolistic();
+        holistic.onResults(r => {
+          if (draw) {
+            const ctx = canvasEl.getContext('2d');
+            canvasEl.width = 320; canvasEl.height = 240;
+            drawHolistic(ctx, canvasEl.width, canvasEl.height, r);
+          }
+          if (!wsReady || waiting) return;
+          // gate on the reliable HandLandmarker signal when provided, else holistic's own
+          const both = externalHands != null
+            ? externalHands
+            : (r.rightHandLandmarks != null && r.leftHandLandmarks != null);
+          waiting = true;
+          ws.send(JSON.stringify({ landmarks: Array.from(buildVec(r)), hasBothHands: both }));
+        });
+        connect();
+        pump();
+      },
+      stop() {
+        running = false; externalHands = null;
+        if (raf) cancelAnimationFrame(raf); raf = null;
+        if (ws) { try { ws.close(); } catch (_) {} ws = null; }
+        if (holistic) holistic.onResults(() => {});
+        if (draw && canvasEl) canvasEl.getContext('2d').clearRect(0, 0, canvasEl.width, canvasEl.height);
+        onMsg && onMsg({ kind: 'idle' });
+      },
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // APP CONTROLLER
+  // ════════════════════════════════════════════════════════════════════
+  const lettersEngine = makeLettersEngine();
+  const wordsEngine = makeWordsEngine();
+  const handOverlay = makeHandOverlay();
+
+  const state = {
+    screen: 'live',
+    liveMode: 'letters',
+    pracMode: 'letters',
+    liveCamOn: false,
+    pracCamOn: false,
+    letterLabels: [],
+    wordLabels: [],
+    target: null,        // practice target sign
+    refItems: [],        // practice reference image/gif list
+    refIdx: 0,
+  };
+
+  // ---- engine routing: stop everything, start the right one ----
+  function stopAllEngines() { handOverlay.stop(); lettersEngine.stop(); wordsEngine.stop(); }
+
+  function routeEngines() {
+    stopAllEngines();
+    const live = state.screen === 'live';
+    const prac = state.screen === 'practice';
+
+    if (live && state.liveCamOn) {
+      const v = document.getElementById('v-live'), c = document.getElementById('c-live');
+      if (state.liveMode === 'letters') startLiveLetters(v, c);
+      else startLiveWords(v, c);
+    }
+    if (prac && state.pracCamOn && state.target) {
+      const v = document.getElementById('v-prac'), c = document.getElementById('c-prac');
+      if (state.pracMode === 'letters') startPracLetters(v, c);
+      else startPracWords(v, c);
+    }
+  }
+
+  // ---- LIVE: letters ----
+  function startLiveLetters(v, c) {
+    document.getElementById('bufwrap-live').style.display = 'none';
+    lettersEngine.start({ video: v, canvas: c, showBox: true, onPred: data => {
+      document.getElementById('dot-live').classList.toggle('ok', !!data.hand);
+      setSP('live', data.hand ? 'qo\'l aniqlandi' : 'qo\'l ko\'rsating', data.hand ? 'active' : '');
+      if (data.hand && data.confidence >= LETTER_CONF && data.label) {
+        showLivePrediction(data.label, data.confidence);
+      } else {
+        hideLivePrediction();
+      }
+    }});
+  }
+  // ---- WORDS hybrid: HandLandmarker overlay + gate, Holistic→WS prediction ----
+  function startWordsHybrid(scope, v, c, onPrediction) {
+    document.getElementById('bufwrap-' + scope).style.display = 'block';
+    setSP(scope, 'ikkala qo\'lni ko\'rsating', '');
+    document.getElementById('dot-' + scope).classList.remove('ok');
+
+    // fast, accurate hand detection (same model as letters) drives the overlay,
+    // the hand-dot, the status text and the both-hands gate for recognition.
+    handOverlay.start({ video: v, canvas: c, onHands: count => {
+      document.getElementById('dot-' + scope).classList.toggle('ok', count >= 1);
+      wordsEngine.setHandsVisible(count >= 2);
+      if (count < 2) setSP(scope, count === 1 ? 'ikkinchi qo\'lni ham ko\'rsating' : 'ikkala qo\'lni ko\'rsating', '');
+    }});
+
+    // Holistic runs in the background only to feed the word model.
+    wordsEngine.start({ video: v, canvas: c, draw: false, onMsg: m => {
+      if (m.kind === 'filling') { setBuf(scope, (m.size/32)*100); setSP(scope, 'yig\'ilmoqda…', 'active'); }
+      else if (m.kind === 'prediction') { setBuf(scope, 100); setTimeout(() => setBuf(scope, 0), 400); onPrediction(m); }
+      else if (m.kind === 'idle') { setBuf(scope, 0); if (scope === 'live') hideLivePrediction(); }
+    }});
+  }
+
+  // ---- LIVE: words ----
+  function startLiveWords(v, c) {
+    startWordsHybrid('live', v, c, m => {
+      showLivePrediction(m.label.replace(/_/g, ' '), m.confidence);
+      addHistory(m.label.replace(/_/g, ' '), Math.round(m.confidence * 100));
+    });
+  }
+
+  function showLivePrediction(label, conf) {
+    document.getElementById('idle-live').style.display = 'none';
+    const r = document.getElementById('result-live'); r.style.display = 'flex';
+    document.getElementById('lbl-live').textContent = label;
+    const pct = Math.round(conf*100);
+    document.getElementById('conf-live').style.width = pct + '%';
+    document.getElementById('pct-live').textContent = pct + '%';
+  }
+  function hideLivePrediction() {
+    document.getElementById('result-live').style.display = 'none';
+    document.getElementById('idle-live').style.display = 'flex';
+  }
+  function addHistory(label, pct) {
+    const list = document.getElementById('hist-live');
+    if (list.firstElementChild && list.firstElementChild.dataset.s === label) return;
+    const li = document.createElement('li'); li.dataset.s = label;
+    li.innerHTML = `<span>${label}</span><span class="hc">${pct}%</span>`;
+    list.insertBefore(li, list.firstChild);
+    while (list.children.length > 8) list.removeChild(list.lastChild);
+  }
+
+  // ---- PRACTICE: letters match ----
+  function startPracLetters(v, c) {
+    document.getElementById('bufwrap-prac').style.display = 'none';
+    lettersEngine.start({ video: v, canvas: c, showBox: false, onPred: data => {
+      document.getElementById('dot-prac').classList.toggle('ok', !!data.hand);
+      setSP('prac', data.hand ? 'qo\'l aniqlandi' : 'qo\'l ko\'rsating', data.hand ? 'active' : '');
+      const ok = data.hand && data.confidence >= LETTER_CONF && state.target && data.label === state.target;
+      setMatch(ok);
+    }});
+  }
+  // ---- PRACTICE: words match ----
+  function startPracWords(v, c) {
+    startWordsHybrid('prac', v, c, m => {
+      setMatch(state.target && m.label === state.target);
+      setTimeout(() => setMatch(false), 1400);
+    });
+  }
+
+  function setMatch(ok) {
+    const el = document.getElementById('match-prac');
+    el.className = 'match-label' + (ok ? ' match' : '');
+    el.textContent = ok ? 'TO\'G\'RI' : '';
+  }
+  function setBuf(scope, pct) { document.getElementById('buf-' + scope).style.width = Math.min(100, pct) + '%'; }
+  function setSP(scope, txt, cls) {
+    document.getElementById('sp-txt-' + scope).textContent = txt;
+    document.getElementById('sp-dot-' + scope).className = 'dot' + (cls ? ' ' + cls : '');
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // PRACTICE: grid + reference
+  // ════════════════════════════════════════════════════════════════════
+  async function loadLabels() {
+    try {
+      const letters = await (await fetch('/api/letters')).json();
+      state.letterLabels = letters.map(l => l.label);
+    } catch (_) {}
+    try {
+      const words = await (await fetch('/api/signs-list')).json();
+      state.wordLabels = words.signs || [];
+    } catch (_) {}
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('sign-grid');
+    const isLetters = state.pracMode === 'letters';
+    grid.className = 'sign-grid ' + (isLetters ? 'letters' : 'words');
+    grid.innerHTML = '';
+    const labels = isLetters ? state.letterLabels : state.wordLabels;
+    labels.forEach(label => {
+      const btn = document.createElement('button');
+      btn.className = 'sign-btn';
+      btn.textContent = isLetters ? label : label.replace(/_/g, ' ');
+      btn.dataset.label = label;
+      btn.onclick = () => selectSign(label);
+      grid.appendChild(btn);
+    });
+  }
+
+  async function selectSign(label) {
+    state.target = label;
+    state.refIdx = 0;
+    document.querySelectorAll('#sign-grid .sign-btn').forEach(b => b.classList.toggle('active', b.dataset.label === label));
+    document.getElementById('ref-panel').classList.add('visible');
+    document.getElementById('ref-label').textContent = state.pracMode === 'letters' ? label : label.replace(/_/g, ' ');
+    document.getElementById('idle-prac').style.display = 'none';
+    document.getElementById('target-box').style.display = 'flex';
+    document.getElementById('target-sign').textContent = state.pracMode === 'letters' ? label : label.replace(/_/g, ' ');
+
+    if (state.pracMode === 'letters') {
+      const files = await (await fetch(`/api/letter-images/${label}`)).json();
+      state.refItems = files.map(f => ({ type: 'img', src: `/letter-images/${f}` }));
+    } else {
+      // human demonstration video (hero) + DWPose skeleton reps as samples below
+      const enc = encodeURIComponent(label);
+      state.refItems = [
+        { type: 'vid', src: `/sign-videos/${enc}.mp4` },
+        { type: 'img', src: `/signs/${enc}/rep_000.gif` },
+        { type: 'img', src: `/signs/${enc}/rep_001.gif` },
+      ];
+    }
+    buildThumbs();
+    showRef(0);
+    routeEngines();   // (re)start practice engine now that we have a target
+  }
+
+  function clearSign() {
+    state.target = null;
+    document.querySelectorAll('#sign-grid .sign-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('ref-panel').classList.remove('visible');
+    document.getElementById('idle-prac').style.display = 'flex';
+    document.getElementById('target-box').style.display = 'none';
+    setMatch(false);
+    stopAllEngines();
+  }
+
+  function buildThumbs() {
+    const strip = document.getElementById('ref-strip');
+    const single = state.refItems.length <= 1;
+    strip.style.display = single ? 'none' : 'flex';
+    document.getElementById('ref-samples-label').style.display = single ? 'none' : 'block';
+    document.getElementById('ref-nav').style.display = single ? 'none' : 'flex';
+    document.getElementById('ref-counter').style.display = single ? 'none' : 'block';
+    strip.innerHTML = '';
+    state.refItems.forEach((item, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'ref-thumb' + (i === 0 ? ' selected' : '');
+      wrap.onclick = () => showRef(i);
+      if (item.type === 'vid') {
+        const vid = document.createElement('video'); vid.src = item.src; vid.muted = true; vid.loop = true; vid.autoplay = true; vid.playsInline = true;
+        wrap.appendChild(vid);
+      } else {
+        const img = document.createElement('img'); img.src = item.src; img.alt = `namuna ${i+1}`;
+        img.onerror = () => { wrap.style.display = 'none'; };
+        wrap.appendChild(img);
+      }
+      strip.appendChild(wrap);
+    });
+  }
+
+  function showRef(idx) {
+    if (!state.refItems.length) return;
+    state.refIdx = (idx + state.refItems.length) % state.refItems.length;
+    const item = state.refItems[state.refIdx];
+    const img = document.getElementById('ref-big'), vid = document.getElementById('ref-vid');
+    const wrap = document.querySelector('.ref-big-wrap');
+    if (item.type === 'vid') {
+      wrap.style.aspectRatio = '16 / 10'; wrap.style.maxHeight = '420px';
+      img.style.display = 'none'; vid.style.display = 'block'; vid.src = item.src; vid.play().catch(()=>{});
+    } else {
+      wrap.style.aspectRatio = '1'; wrap.style.maxHeight = '300px';
+      vid.style.display = 'none'; vid.pause(); img.style.display = 'block'; img.src = item.src;
+    }
+    document.getElementById('ref-counter').textContent = `${state.refIdx+1} / ${state.refItems.length}`;
+    document.querySelectorAll('.ref-thumb').forEach((el, i) => el.classList.toggle('selected', i === state.refIdx));
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // NAV + MODE wiring
+  // ════════════════════════════════════════════════════════════════════
+  document.querySelectorAll('.nav-link[data-screen]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const screen = btn.dataset.screen;
+      state.screen = screen;
+      document.querySelectorAll('.nav-link[data-screen]').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('screen-live').classList.toggle('active', screen === 'live');
+      document.getElementById('screen-practice').classList.toggle('active', screen === 'practice');
+      routeEngines();
+    });
+  });
+
+  document.querySelectorAll('.mode-toggle').forEach(group => {
+    group.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const grp = group.dataset.modegroup;     // 'live' | 'practice'
+        const mode = btn.dataset.mode;            // 'letters' | 'words'
+        group.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+        if (grp === 'live') {
+          state.liveMode = mode;
+          hideLivePrediction(); document.getElementById('hist-live').innerHTML = '';
+          document.getElementById('idle-ic-live').textContent = mode === 'words' ? '🤟' : '✋';
+          document.getElementById('idle-txt-live').textContent = mode === 'words' ? 'Ikkala qo\'lingizni kameraga ko\'rsating' : 'Qo\'lingizni kameraga ko\'rsating';
+        } else {
+          state.pracMode = mode;
+          clearSign();
+          renderGrid();
+        }
+        routeEngines();
+      });
+    });
+  });
+
+  // start camera buttons
+  document.getElementById('start-live').addEventListener('click', async (e) => {
+    try { await ensureCamera(); state.liveCamOn = true; e.target.textContent = 'Kamera yoqilgan'; e.target.disabled = true; routeEngines(); }
+    catch { e.target.textContent = 'Kameraga ruxsat yo\'q'; }
+  });
+  document.getElementById('start-prac').addEventListener('click', async (e) => {
+    try { await ensureCamera(); state.pracCamOn = true; e.target.textContent = 'Kamera yoqilgan'; e.target.disabled = true; routeEngines(); }
+    catch { e.target.textContent = 'Kameraga ruxsat yo\'q'; }
+  });
+
+  document.getElementById('back-btn').addEventListener('click', clearSign);
+  document.getElementById('ref-prev').addEventListener('click', () => showRef(state.refIdx - 1));
+  document.getElementById('ref-next').addEventListener('click', () => showRef(state.refIdx + 1));
+
+  // ════════════════════════════════════════════════════════════════════
+  // BOOT
+  // ════════════════════════════════════════════════════════════════════
+  function applyHashScreen() {
+    const screen = location.hash === '#practice' ? 'practice' : 'live';
+    if (screen === state.screen) return;
+    const btn = document.querySelector(`.nav-link[data-screen="${screen}"]`);
+    if (btn) btn.click();
+  }
+  window.addEventListener('hashchange', applyHashScreen);
+
+  (async function boot() {
+    initHandLandmarker();   // warm up in background
+    await loadLabels();
+    renderGrid();
+    applyHashScreen();
+  })();
+  </script>
+</body>
+</html>
